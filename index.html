@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Тест по вопросам</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+
+    .question {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .progress {
+      font-size: 16px;
+      margin-bottom: 20px;
+      color: #555;
+    }
+
+    .btn {
+      display: block;
+      margin: 10px 0;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      transition: background 0.3s;
+      width: 100%;
+      text-align: left;
+    }
+
+    .btn:hover {
+      background: #e6f7ff;
+    }
+
+    .correct {
+      background-color: #d4edda;
+      border-color: #28a745;
+    }
+
+    .wrong {
+      background-color: #f8d7da;
+      border-color: #dc3545;
+    }
+
+    #navigation .btn {
+      display: inline-block;
+      width: auto;
+      margin-right: 5px;
+      margin-bottom: 10px;
+    }
+
+    .active-question {
+      background-color: #cce5ff !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="navigation"></div>
+  <div class="progress" id="questionCounter"></div>
+  <div class="question" id="questionText">Загрузка...</div>
+  <div id="questionImageContainer" style="margin-bottom: 20px;"></div>
+  <div id="answerButtons"></div>
+  <div id="nextBtnContainer" style="margin-top: 20px;"></div>
+  <div id="testResult" style="font-size: 18px; margin-top: 20px; display: none;"></div>
+
+<script>
+  let questions = [];
+  let currentQuestionIndex = 0;
+  let userAnswers = []; // сюда будем сохранять правильность ответа
+
+  fetch('questions.json')
+    .then(response => response.json())
+    .then(data => {
+      questions = data;
+      userAnswers = new Array(questions.length).fill(null);
+      renderNavigation();
+      showQuestion();
+    })
+    .catch(error => {
+      document.getElementById("questionText").textContent = "Ошибка загрузки вопросов.";
+      console.error("Ошибка при загрузке questions.json:", error);
+    });
+
+  function renderNavigation() {
+    const nav = document.getElementById("navigation");
+    nav.innerHTML = "";
+    questions.forEach((_, index) => {
+      const btn = document.createElement("button");
+      btn.textContent = index + 1;
+      btn.className = "btn nav-btn";
+      btn.onclick = () => {
+        currentQuestionIndex = index;
+        showQuestion();
+      };
+      nav.appendChild(btn);
+    });
+    highlightActiveNavigation();
+  }
+
+function showQuestion() {
+  const q = questions[currentQuestionIndex];
+
+  document.getElementById("questionCounter").textContent =
+    `Вопрос ${currentQuestionIndex + 1} из ${questions.length}`;
+  document.getElementById("questionText").textContent = q.text;
+
+  // Показываем картинку, если она есть
+  const imgContainer = document.getElementById("questionImageContainer");
+  imgContainer.innerHTML = "";
+  if (q.image) {
+  const img = document.createElement("img");
+  img.src = q.image;
+  img.alt = "Изображение к вопросу";
+  img.style.maxWidth = "100%";
+  img.style.border = "1px solid #ccc";
+  img.style.marginBottom = "10px";
+  imgContainer.appendChild(img);
+  }   
+
+  const answerContainer = document.getElementById("answerButtons");
+  answerContainer.innerHTML = "";
+
+  q.options.forEach((option, index) => {
+    const btn = document.createElement("button");
+    btn.textContent = option;
+    btn.className = "btn";
+    btn.onclick = () => checkAnswer(index, btn);
+    answerContainer.appendChild(btn);
+  });
+
+  document.getElementById("nextBtnContainer").innerHTML = "";
+  highlightActiveNavigation();
+  }
+
+  function checkAnswer(selectedIndex, btn) {
+    const correct = questions[currentQuestionIndex].correctIndex;
+    const allButtons = document.querySelectorAll("#answerButtons .btn");
+
+    const isCorrect = selectedIndex === correct;
+    userAnswers[currentQuestionIndex] = isCorrect;
+
+    allButtons.forEach((b, i) => {
+      b.disabled = true;
+      if (i === correct) b.classList.add("correct");
+      else if (i === selectedIndex) b.classList.add("wrong");
+    });
+
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Следующий вопрос";
+    nextBtn.onclick = nextQuestion;
+    nextBtn.className = "btn";
+    document.getElementById("nextBtnContainer").appendChild(nextBtn);
+
+    updateNavColors(); // обновим цвета после ответа
+  }
+
+  function nextQuestion() {
+  currentQuestionIndex++;
+  if (currentQuestionIndex < questions.length) {
+    showQuestion();
+  } else {
+  // Очистка изображения
+  const imgContainer = document.getElementById("questionImageContainer");
+  imgContainer.innerHTML = "";
+
+  document.getElementById("questionCounter").textContent = "";
+  document.getElementById("questionText").textContent = "Тест завершён.";
+  document.getElementById("answerButtons").innerHTML = "";
+
+  const total = questions.length;
+  const correctCount = userAnswers.filter(ans => ans === true).length;
+  const wrongCount = userAnswers.filter(ans => ans === false).length;
+  const unansweredCount = userAnswers.filter(ans => ans === null).length;
+
+  const resultText = `
+    Результат:<br>
+    ✅ Верных: ${correctCount}<br>
+    ❌ Неверных: ${wrongCount}<br>
+    ❓ Неотвечено: ${unansweredCount}
+  `;
+
+  const resultDiv = document.getElementById("testResult");
+  resultDiv.innerHTML = resultText;
+  resultDiv.style.display = "block";
+
+  const restartBtn = document.createElement("button");
+  restartBtn.textContent = "Пройти снова";
+  restartBtn.className = "btn";
+  restartBtn.onclick = restartQuiz;
+
+  document.getElementById("nextBtnContainer").innerHTML = "";
+  document.getElementById("nextBtnContainer").appendChild(restartBtn);
+  document.getElementById("navigation").innerHTML = "";
+}
+  }
+
+  function restartQuiz() {
+    currentQuestionIndex = 0;
+    userAnswers.fill(null);
+    renderNavigation();
+    showQuestion();
+  }
+
+  function highlightActiveNavigation() {
+    const navButtons = document.querySelectorAll("#navigation .btn");
+    navButtons.forEach((btn, idx) => {
+      btn.classList.remove("active-question");
+
+      if (idx === currentQuestionIndex) {
+        btn.classList.add("active-question");
+      }
+    });
+  }
+
+  function updateNavColors() {
+    const navButtons = document.querySelectorAll("#navigation .btn");
+    navButtons.forEach((btn, idx) => {
+      btn.style.backgroundColor = "#fff"; // сброс
+      btn.style.borderColor = "#ccc";
+      btn.style.color = "#000";
+
+      if (userAnswers[idx] === true) {
+        btn.style.backgroundColor = "#d4edda";
+        btn.style.borderColor = "#28a745";
+      } else if (userAnswers[idx] === false) {
+        btn.style.backgroundColor = "#f8d7da";
+        btn.style.borderColor = "#dc3545";
+      }
+
+      if (idx === currentQuestionIndex) {
+        btn.style.backgroundColor = "#cce5ff";
+        btn.style.borderColor = "#004085";
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
