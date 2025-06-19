@@ -77,11 +77,11 @@
   fetch('questions.json')
     .then(response => response.json())
     .then(data => {
-      questions = data;
-      userAnswers = new Array(questions.length).fill(null);
-      renderNavigation();
-      showQuestion();
-    })
+  questions = getRandomQuestions(data, 20); // выбрать случайные 20
+  userAnswers = new Array(questions.length).fill(null);
+  renderNavigation();
+  showQuestion();
+  })
     .catch(error => {
       document.getElementById("questionText").textContent = "Ошибка загрузки вопросов.";
       console.error("Ошибка при загрузке questions.json:", error);
@@ -201,10 +201,20 @@ function showQuestion() {
   }
 
   function restartQuiz() {
-    currentQuestionIndex = 0;
-    userAnswers.fill(null);
-    renderNavigation();
-    showQuestion();
+  fetch('questions.json')
+    .then(response => response.json())
+    .then(data => {
+      questions = getRandomQuestions(data, 20); // снова выбрать 20 случайных
+      userAnswers = new Array(questions.length).fill(null);
+      currentQuestionIndex = 0;
+      renderNavigation();
+      showQuestion();
+      document.getElementById("testResult").style.display = "none";
+    })
+    .catch(error => {
+      document.getElementById("questionText").textContent = "Ошибка загрузки вопросов.";
+      console.error("Ошибка при повторной загрузке questions.json:", error);
+    });
   }
 
   function highlightActiveNavigation() {
@@ -217,6 +227,12 @@ function showQuestion() {
       }
     });
   }
+
+  function getRandomQuestions(allQuestions, count) {
+  const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}
+
 
   function updateNavColors() {
     const navButtons = document.querySelectorAll("#navigation .btn");
